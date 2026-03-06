@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from groq import Groq
 
 # ==========================================
@@ -40,7 +40,7 @@ def fetch_customer_ids():
     response = requests.get(COHORT_URL, headers=headers)
     if response.status_code == 200:
         data = response.json().get("data", [])
-        # Grabbing 5 customers for testing so we don't spam the whole database
+        # Grabbing all customers
         return [customer["customer_id"] for customer in data]
     else:
         st.error(f"Failed to fetch cohort: {response.text}")
@@ -96,8 +96,16 @@ def schedule_hackathon_campaign(subject, body, customer_ids):
         "X-API-Key": HACKATHON_API_KEY,
         "Content-Type": "application/json"
     }
+    
+    # --- TIMEZONE FIX FOR STREAMLIT CLOUD ---
+    # 1. Get current time in UTC
+    # 2. Add 5 hours and 30 minutes to convert to IST
+    # 3. Add 2 minutes to schedule it slightly in the future
+    ist_time = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    scheduled_time = ist_time + timedelta(minutes=2)
+    
     # Format the time exactly as the API requires: DD:MM:YY HH:MM:SS
-    send_time = (datetime.now() + timedelta(minutes=2)).strftime("%d:%m:%y %H:%M:%S")
+    send_time = scheduled_time.strftime("%d:%m:%y %H:%M:%S")
     
     payload = {
         "subject": subject,
